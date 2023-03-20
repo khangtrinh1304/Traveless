@@ -1,0 +1,229 @@
+﻿@page "/flights"
+@using Traveless.Data;
+
+<h5 style="text-align:center">Flight Finder</h5>
+
+<div style="display:flex; flex-direction: row;">
+
+    <div style="flex:1;">
+        <label>From:</label><br />
+        <select name="from-port" @onchange="ShowOrigin" style="width: 200px;">
+            <option>Any</option>
+            @foreach (var originGroup in flights.GroupBy(f => f.FromCodePort).Select(g => g.First()).OrderBy(g => g.FromCodePort))
+            {
+                <option value="@originGroup.FromCodePort">@originGroup.FromCodePort</option>
+            }
+        </select>
+    </div>
+
+    <div style="flex:1;">
+        <label>To:</label><br />
+        <select name="to-port" @onchange="ShowDestination" style="width: 200px;">
+            <option>Any</option>
+            @foreach (var destGroup in flights.GroupBy(f => f.ToCodePort).Select(g => g.First()).OrderBy(g => g.ToCodePort))
+            {
+                if (selectedOrigin == null || destGroup.ToCodePort != selectedOrigin)
+                {
+                    <option value="@destGroup.ToCodePort">@destGroup.ToCodePort</option>
+                }
+                else
+                {
+                    <option value="@destGroup.ToCodePort" hidden>@destGroup.ToCodePort</option>
+                }
+            }
+        </select>
+    </div>
+
+    <div style="flex:1;">
+        <label>Day:</label><br />
+        <select name="day" @onchange="ShowDay" style="width: 200px;">
+            <option>Any</option>
+            @foreach (var day in FlightManager.GetDayOptions())
+            {
+                <option value="@day">@day</option>
+            }
+        </select>
+    </div>
+
+    <div style="flex:1;">
+        <br />
+        <button type="submit" style="width: 200px; height:25px; background-color:aqua; color:white; border-radius:4px; border:none" @onclick="FindFlights">Find flights</button>
+    </div>
+
+</div>
+<br />
+
+<div>
+    <h5 style="text-align:center">Flights</h5>
+
+    <div style="flex:1;">
+        <select name="flightInfo" style="width: 100%;" @onchange="HandleFlightSelection">
+            <option hidden>Loading....</option>
+            @foreach (var flight in matchingFlights)
+            {
+                <option value="@flight.FlightCode">@flight.FlightCode, @flight.AirlineName, @flight.FromCodePort, @flight.ToCodePort, @flight.Day, @flight.DeptTime, @flight.PassengerSeats, @flight.Cost</option>
+            }
+        </select>
+        @if (errorMessage != null)
+        {
+            <div style="color:red;">@errorMessage</div>
+        }
+    </div><br />
+
+</div>
+
+<div>
+    <h5 style="text-align:center">Reserve</h5>
+
+    <div>
+        <div>
+            <label>Flight Code:</label><br />
+            <input type="text" class="form-control" id="flighCode" placeholder="Flight" @bind-value="selectedFlight.FlightCode" disabled>
+        </div>
+        <div>
+            <label>Airline:</label><br />
+            <input type="text" class="form-control" id="airLine" placeholder="Airline" @bind-value="selectedFlight.AirlineName" disabled>
+        </div>
+        <div>
+            <label>Day:</label><br />
+            <input type="text" class="form-control" id="day" placeholder="Day" @bind-value="selectedFlight.Day" disabled>
+        </div>
+        <div>
+            <label>Time:</label><br />
+            <input type="text" class="form-control" id="time" placeholder="Time" @bind-value="selectedFlight.DeptTime" disabled>
+        </div>
+        <div>
+            <label>Cost:</label><br />
+            <input type="text" class="form-control" id="cost" placeholder="0" @bind-value="selectedFlight.Cost" disabled>
+        </div>
+        <div>
+            <label>Name:</label><br />
+            <input type="text" class="form-control" id="passengerName" placeholder="Name" @bind-value="travellerName">
+        </div>
+        <div>
+            <label>Citizenship:</label><br />
+            <input type="text" class="form-control" id="passengerCitizen" placeholder="Citizenship" @bind-value="travellerCitizenship">
+
+
+        </div>
+
+        <div style="text-align:center;">
+            <br />
+            <button type="submit" style="width: 200px; height:25px; background-color:aqua; color:white; border-radius:4px; border:none" @onclick="makeReservation"> Reserve</button>
+        </div><br />
+         <div style="text-align:center;">
+            <label>Reservation Code:@resCode</label>
+                       
+        </div>
+
+
+
+    </div>
+</div>
+
+
+@code 
+{
+    private FlightManager flightmanager = new FlightManager();
+    private ReservationManager reservationmanager = new ReservationManager();
+    List<Flight> flights = new List<Flight>();
+    List<Flight> matchingFlights = new List<Flight>();
+    Flight selectedFlight = new Flight("", "", "", "", "", "", 0, 0.0);
+    string selectedOrigin, selectedDestination, selectedDay, travellerName, travellerCitizenship;
+    string errorMessage = null;
+    private string resCode = "";
+
+    protected override void OnInitialized()
+    {
+        flights = flightmanager.GetFlight();
+
+    }
+
+    private void ShowOrigin(ChangeEventArgs e)
+    {
+        selectedOrigin = e.Value.ToString();
+    }
+
+    private void ShowDestination(ChangeEventArgs e)
+    {
+        selectedDestination = e.Value.ToString();
+    }
+
+    private void ShowDay(ChangeEventArgs e)
+    {
+        selectedDay = e.Value.ToString();
+    }
+
+    private void FindFlights()
+    {
+        matchingFlights = FindFlights(flights, selectedOrigin, selectedDestination, selectedDay);
+        if (matchingFlights.Count == 0)
+        {
+            errorMessage = "No flights found for the selected criteria.";
+        }
+        else
+        {
+            errorMessage = null;
+        }
+    }
+
+    private List<Flight> FindFlights(List<Flight> flights, string origin, string destination, string day)
+    {
+        List<Flight> matchingFlights = new List<Flight>();
+        foreach (Flight flight in flights)
+        {
+            if (origin == flight.FromCodePort && destination == flight.ToCodePort && day == flight.Day)
+            {
+                matchingFlights.Add(flight);
+            }
+        }
+
+        return matchingFlights;
+    }
+
+    private void HandleFlightSelection(ChangeEventArgs e)
+    {
+        string flightCode = e.Value.ToString();
+        selectedFlight = findFlightFromCode(flights, flightCode);
+    }
+
+    private Flight findFlightFromCode(List<Flight> allFlight, string flightCode)
+    {
+        return allFlight.Find(flight => flight.FlightCode == flightCode);
+    }
+
+    private void makeReservation()
+    {
+
+        if (selectedFlight.FlightCode == "")
+        {
+            throw new InvalidFlightCodeException($"Invalid flight code!!!, please fill out flight code again");
+
+        }
+
+        if (travellerName == null)
+        {
+            throw new InvalidNameException($"Invalid name!!, please fill out name again");
+        }
+        if (travellerCitizenship == null)
+        {
+            throw new InvalidCitizenshipException($"Invalid relationship!!, please fill out citizenship again");
+
+        }
+
+        int newSeats = flights.Find(flight => flight.FlightCode == selectedFlight.FlightCode).PassengerSeats - 1;
+        if (newSeats < 0)
+        {
+            throw new NoMoreSeatException();
+        }
+
+        flights.Find(flight => flight.FlightCode == selectedFlight.FlightCode).PassengerSeats = newSeats;
+        Reservation reservation = new Reservation(travellerName, travellerCitizenship, selectedFlight, "active");
+        resCode = reservation.ReservationCode;
+
+        errorMessage = null;
+        reservationmanager.save(reservation);
+     
+    }
+}
+

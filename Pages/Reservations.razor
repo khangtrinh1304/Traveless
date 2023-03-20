@@ -1,0 +1,179 @@
+﻿@page "/reservations"
+@using Traveless.Data;
+
+<h5 style="text-align:center">Reservation Finder</h5>
+
+<div style="display:flex; flex-direction: row;">
+
+    <div style="flex:1;">
+        <label>Code:</label><br />
+            <input type="text" class="Rescode" placeholder="Any" style="width: 200px;" @bind-value="lookupCode">
+    </div>
+
+    <div style="flex:1;">
+        <label>Airline:</label><br />
+            <input type="text" class="lookupAirline" placeholder="Any" style="width: 200px;" @bind-value="lookupAirline">
+
+    </div>
+
+    <div style="flex:1;">
+        <label>Name:</label><br />
+            <input type="text" class="travellerName" placeholder="Any" style="width: 200px;" @bind-value="lookupName">
+
+    </div>
+
+    <div style="flex:1;">
+        <br />
+        <button type="submit" style="width: 200px; height:25px; background-color:aqua; color:white; border-radius:4px; border:none" @onclick="FindReservation">Find reservations</button>
+    </div>
+
+</div>
+<br />
+
+<div>
+    <h5 style="text-align:center">Reservations</h5>
+
+    <div style="flex:1;">
+        <select name="reservationInfo" style="width: 100%;" @onchange="ReservationSelection">
+            @if (matchReservations == null)
+            {
+                <option hidden>Find reservations by pressing 'Find Reservations'</option>
+            }
+            else
+            {
+                if (matchReservations.Count == 0)
+                {
+                    <option hidden>No reservations found</option>
+                }
+                else
+                {
+                    <option hidden>Choose your reservation...</option>
+                    @foreach (var reservation in matchReservations)
+                    {
+                        <option value="@reservation.ReservationCode">@reservation.ReservationCode, @reservation.Flight.AirlineName, @reservation.Flight.FromCodePort, @reservation.Flight.ToCodePort, @reservation.Flight.Day, @reservation.Flight.DeptTime, @reservation.Flight.PassengerSeats, @reservation.Flight.Cost / @reservation.TravellerName</option>
+                    }
+                }
+            }
+        </select>
+    </div><br />
+
+</div>
+
+<div>
+    <h5 style="text-align:center">Reserve</h5>
+
+    <div>
+        <div>
+            <label>Reservation Code:</label><br />
+            <input type="text" class="form-control" id="ResCode" placeholder="Code" @bind-value=selectReservation.ReservationCode>
+        </div>
+        <div>
+            <label>Flight Code:</label><br />
+            <input type="text" class="form-control" id="flighCode" placeholder="Flight" @bind-value="selectReservation.Flight.FlightCode">
+        </div>
+        <div>
+            <label>Airline:</label><br />
+            <input type="text" class="form-control" id="airLineName" placeholder="Airline" @bind-value="selectReservation.Flight.AirlineName">
+        </div>
+        <div>
+            <label>Day:</label><br />
+            <input type="text" class="form-control" id="FlightCost" placeholder="Cost" @bind-value="selectReservation.Flight.Day">
+        </div>
+        <div>
+            <label>Time:</label><br />
+            <input type="text" class="form-control" id="TravellerName" placeholder="Name" @bind-value="selectReservation.TravellerName">
+        </div>
+        <div>
+            <label>Cost:</label><br />
+            <input type="text" class="form-control" id="travellerCitizenship" placeholder="Citizenship" @bind-value="selectReservation.TravellerCitizenship">
+        </div>
+        <div>
+            <label>Status:</label><br />
+            <select name="status" style="width: 100%;" @bind="selectReservation.Status">
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+            </select>
+        </div>
+
+        <div style="text-align:center;">
+            <br />
+            <button type="submit" style="width: 200px; height:25px; background-color:aqua; color:white; border-radius:4px; border:none" @onclick="ReservationSave"> Save</button>
+        </div><br />
+
+
+
+    </div>
+</div>
+
+@code
+{
+    private FlightManager flightmanager = new FlightManager();
+    private ReservationManager reservationmanager = new ReservationManager();
+    List<Reservation> flightReservations = new List<Reservation>();
+    List<Reservation> matchReservations = null;
+    Reservation selectReservation = new Reservation("", "", new Flight("", "", "", "", "", "", 0, 0.0), "active");
+
+    public string lookupCode, lookupAirline, lookupName;
+
+    protected override void OnInitialized()
+    {
+        flightReservations = reservationmanager.readFromStorage();
+
+    }
+
+    private void LookupResCode(ChangeEventArgs a)
+    {
+        lookupCode = a.Value.ToString();
+    }
+
+    private void LookupAirline(ChangeEventArgs a)
+    {
+        lookupAirline = a.Value.ToString();
+    }
+
+    private void LookupName(ChangeEventArgs a)
+    {
+        lookupName = a.Value.ToString();
+    }
+
+    private void ReservationSelection(ChangeEventArgs a)
+    {
+        string reservationCode = a.Value.ToString();
+        selectReservation = flightReservations.Find(item => item.ReservationCode == reservationCode);
+    }
+
+    private void StatusSelection(ChangeEventArgs a)
+    {
+        selectReservation.Status = a.Value.ToString();
+    }
+
+    private void FindReservation()
+    {
+        List<Reservation> filterReseravtions = flightReservations;
+
+        if (!String.IsNullOrEmpty(lookupAirline))
+        {
+            filterReseravtions = filterReseravtions.FindAll(reservation => reservation.Flight.AirlineName.Contains(lookupAirline));
+        }
+
+        if (!String.IsNullOrEmpty(lookupName))
+        {
+            filterReseravtions = filterReseravtions.FindAll(reservation => reservation.TravellerName.Contains(lookupName));
+        }
+
+        if (!String.IsNullOrEmpty(lookupCode))
+        {
+            filterReseravtions = filterReseravtions.FindAll(reservation => reservation.ReservationCode == lookupCode);
+        }
+
+        matchReservations = filterReseravtions;
+    }
+    private void ReservationSave()
+    {
+        int saveReservation = flightReservations.FindIndex(item => item.ReservationCode == selectReservation.ReservationCode);
+        flightReservations[saveReservation].Status = selectReservation.Status;
+        reservationmanager.save(flightReservations);
+    }
+}
+
+
